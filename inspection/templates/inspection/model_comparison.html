@@ -1,0 +1,98 @@
+{% extends "inspection/base.html" %}
+{% block title %}Model Comparison - InspectFlow{% endblock %}
+{% block content %}
+<h2 class="mb-3">Compare model versions</h2>
+
+<form method="get" class="row row-cols-lg-auto g-2 align-items-center mb-4">
+    <div class="col-12">
+        <select name="model_a" class="form-select">
+            <option value="">Model A</option>
+            {% for mv in model_versions %}
+            <option value="{{ mv.slug }}" {% if selected_a == mv.slug %}selected{% endif %}>{{ mv.display_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <select name="model_b" class="form-select">
+            <option value="">Model B</option>
+            {% for mv in model_versions %}
+            <option value="{{ mv.slug }}" {% if selected_b == mv.slug %}selected{% endif %}>{{ mv.display_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <select name="evaluation_set" class="form-select">
+            <option value="">Evaluation set</option>
+            {% for es in evaluation_sets %}
+            <option value="{{ es.pk }}" {% if selected_eval_set == es.pk|stringformat:"s" %}selected{% endif %}>{{ es.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12"><button class="btn btn-primary" type="submit">Compare</button></div>
+</form>
+
+{% if comparison %}
+<p class="text-muted">
+    Evaluation set "{{ comparison.evaluation_set.name }}" has {{ comparison.total_labeled_images }} labeled image(s).
+    {% if comparison.both_missing_predictions %}
+    <span class="text-warning">{{ comparison.both_missing_predictions }} labeled image(s) are missing a prediction from one or both models and were excluded from the disagreement list.</span>
+    {% endif %}
+</p>
+
+<div class="row g-4 mb-4">
+    {% for result in comparison.results_list %}
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">{{ result.model_version.display_name }}</div>
+            <div class="card-body">
+                {% if result.accuracy is None %}
+                <p class="text-muted">No evaluable images for this model on this evaluation set.</p>
+                {% else %}
+                <p class="fs-4 fw-bold mb-1">{{ result.accuracy|floatformat:3 }} accuracy</p>
+                <p class="small text-muted">{{ result.evaluated_count }} evaluated
+                    {% if result.skipped_missing_prediction %}&middot; {{ result.skipped_missing_prediction }} skipped (no prediction){% endif %}
+                </p>
+                <table class="table table-sm">
+                    <thead><tr><th>Class</th><th>Support</th><th>Precision</th><th>Recall</th></tr></thead>
+                    <tbody>
+                        {% for key, m in result.class_metrics.items %}
+                        {% if m.support %}
+                        <tr>
+                            <td>{{ key }}</td>
+                            <td>{{ m.support }}</td>
+                            <td>{% if m.precision is not None %}{{ m.precision|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
+                            <td>{% if m.recall is not None %}{{ m.recall|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header">Disagreements ({{ comparison.disagreements|length }})</div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr><th></th><th>{{ comparison.result_a.model_version.display_name }}</th><th>{{ comparison.result_b.model_version.display_name }}</th><th>Reviewed label</th></tr></thead>
+            <tbody>
+                {% for case in comparison.disagreements %}
+                <tr>
+                    <td><a href="{% url 'review_detail' case.image.pk %}"><img src="{{ case.image.file.url }}" style="width:50px;height:50px;object-fit:cover;" class="rounded"></a></td>
+                    <td>{{ case.label_a }} ({{ case.confidence_a|floatformat:2 }})</td>
+                    <td>{{ case.label_b }} ({{ case.confidence_b|floatformat:2 }})</td>
+                    <td>{{ case.ground_truth }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">No disagreements on the shared labeled set.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

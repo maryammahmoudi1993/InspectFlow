@@ -1,0 +1,174 @@
+import io
+
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
+from django.urls import reverse
+from PIL import Image
+
+from . import demo_classifier
+from .evaluation import compare_models, evaluate_model_on_set
+from .models import (
+    Batch,
+    EvaluationSet,
+    ModelVersion,
+    Prediction,
+    ProductImage,
+    ReleaseDecision,
+    Review,
+)
+
+
+def make_uploaded_image(name="test.jpg"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (50, 50), (100, 150, 200)).save(buffer, format="JPEG")
+    buffer.seek(0)
+    return SimpleUploadedFile(name, buffer.read(), content_type="image/jpeg")
+
+
+class DemoClassifierTests(TestCase):
+    def test_classify_is_deterministic(self):
+        result_1 = demo_classifier.classify("some-image.jpg", "v1-baseline")
+        result_2 = demo_classifier.classify("some-image.jpg", "v1-baseline")
+        self.assertEqual(result_1, result_2)
+
+    def test_classify_confidence_in_range(self):
+        result = demo_classifier.classify("another-image.jpg", "v2-improved")
+        self.assertGreaterEqual(result["confidence"], 0.0)
+        self.assertLessEqual(result["confidence"], 1.0)
+
+
+class BatchUploadTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("tester", password="pw12345")
+        self.client.force_login(self.user)
+        ModelVersion.objects.create(slug="v1-baseline", display_name="V1", is_current=True)
+        ModelVersion.objects.create(slug="v2-improved", display_name="V2")
+
+    def test_upload_runs_demo_inference(self):
+        response = self.client.post(
+            reverse("batch_upload"),
+            {"name": "Test batch", "notes": "", "files": [make_uploaded_image()]},
+        )
+        self.assertEqual(response.status_code, 302)
+        batch = Batch.objects.get(name="Test batch")
+        self.assertEqual(batch.images.count(), 1)
+        image = batch.images.first()
+        self.assertEqual(image.predictions.count(), 2)
+
+    def test_upload_rejects_invalid_extension(self):
+        bad_file = SimpleUploadedFile("test.txt", b"not an image", content_type="text/plain")
+        response = self.client.post(
+            reverse("batch_upload"),
+            {"name": "Bad batch", "notes": "", "files": [bad_file]},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Batch.objects.filter(name="Bad batch").exists())
+
+    def test_upload_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("batch_upload"))
+        self.assertEqual(response.status_code, 302)
+
+
+class ReviewFlowTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("reviewer1", password="pw12345")
+        self.client.force_login(self.user)
+        self.model_version = ModelVersion.objects.create(slug="v1-baseline", display_name="V1")
+        self.batch = Batch.objects.create(name="Batch 1")
+        self.image = ProductImage.objects.create(
+            batch=self.batch, file=make_uploaded_image(), original_filename="a.jpg"
+        )
+        Prediction.objects.create(
+            image=self.image, model_version=self.model_version, predicted_class="scratch",
+            confidence=0.4, status=Prediction.STATUS_PROCESSED,
+        )
+
+    def test_review_correction_creates_audit_entry(self):
+        url = reverse("review_detail", args=[self.image.pk])
+        response = self.client.post(url, {"ground_truth_label": "dent", "note": "corrected"})
+        self.assertEqual(response.status_code, 302)
+        review = Review.objects.get(image=self.image)
+        self.assertEqual(review.ground_truth_label, "dent")
+        self.assertEqual(review.status, Review.STATUS_REVIEWED)
+        self.assertTrue(review.audit_entries.filter(field_changed="ground_truth_label").exists())
+
+
+class EvaluationTests(TestCase):
+    def setUp(self):
+        self.model_a = ModelVersion.objects.create(slug="a", display_name="A")
+        self.model_b = ModelVersion.objects.create(slug="b", display_name="B")
+        self.batch = Batch.objects.create(name="Eval batch")
+        self.images = []
+        for i in range(3):
+            image = ProductImage.objects.create(
+                batch=self.batch, file=make_uploaded_image(f"e{i}.jpg"), original_filename=f"e{i}.jpg"
+            )
+            Review.objects.create(
+                image=image, ground_truth_label="scratch", status=Review.STATUS_REVIEWED
+            )
+            Prediction.objects.create(
+                image=image, model_version=self.model_a, predicted_class="scratch",
+                confidence=0.9, status=Prediction.STATUS_PROCESSED,
+            )
+            Prediction.objects.create(
+                image=image, model_version=self.model_b, predicted_class="dent",
+                confidence=0.5, status=Prediction.STATUS_PROCESSED,
+            )
+            self.images.append(image)
+        self.eval_set = EvaluationSet.objects.create(name="Set 1")
+        self.eval_set.images.set(self.images)
+
+    def test_evaluate_model_on_set_accuracy(self):
+        result = evaluate_model_on_set(self.model_a, self.eval_set)
+        self.assertEqual(result.evaluated_count, 3)
+        self.assertEqual(result.accuracy, 1.0)
+
+        result_b = evaluate_model_on_set(self.model_b, self.eval_set)
+        self.assertEqual(result_b.accuracy, 0.0)
+
+    def test_evaluate_excludes_unlabeled_images(self):
+        unlabeled = ProductImage.objects.create(
+            batch=self.batch, file=make_uploaded_image("u.jpg"), original_filename="u.jpg"
+        )
+        self.eval_set.images.add(unlabeled)
+        result = evaluate_model_on_set(self.model_a, self.eval_set)
+        self.assertEqual(result.evaluated_count, 3)
+
+    def test_compare_models_finds_disagreements(self):
+        comparison = compare_models(self.model_a, self.model_b, self.eval_set)
+        self.assertEqual(len(comparison["disagreements"]), 3)
+        self.assertEqual(comparison["total_labeled_images"], 3)
+
+    def test_compare_models_handles_missing_prediction(self):
+        extra_image = ProductImage.objects.create(
+            batch=self.batch, file=make_uploaded_image("m.jpg"), original_filename="m.jpg"
+        )
+        Review.objects.create(image=extra_image, ground_truth_label="dent", status=Review.STATUS_REVIEWED)
+        Prediction.objects.create(
+            image=extra_image, model_version=self.model_a, predicted_class="dent",
+            confidence=0.8, status=Prediction.STATUS_PROCESSED,
+        )
+        self.eval_set.images.add(extra_image)
+        comparison = compare_models(self.model_a, self.model_b, self.eval_set)
+        self.assertEqual(comparison["both_missing_predictions"], 1)
+        self.assertEqual(len(comparison["disagreements"]), 3)
+
+
+class ReleaseDecisionTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("releaser", password="pw12345")
+        self.client.force_login(self.user)
+        self.candidate = ModelVersion.objects.create(slug="candidate", display_name="Candidate")
+        self.eval_set = EvaluationSet.objects.create(name="Set 1")
+
+    def test_record_decision(self):
+        url = reverse("release_candidate_detail", args=[self.candidate.slug])
+        response = self.client.post(
+            url, {"decision": "needs_review", "rationale": "Not enough coverage yet."}
+        )
+        self.assertEqual(response.status_code, 302)
+        decision = ReleaseDecision.objects.get(candidate_version=self.candidate)
+        self.assertEqual(decision.decision, "needs_review")
+        self.assertEqual(decision.decided_by, self.user)

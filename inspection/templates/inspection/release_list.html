@@ -1,0 +1,40 @@
+{% extends "inspection/base.html" %}
+{% block title %}Release Decisions - InspectFlow{% endblock %}
+{% block content %}
+<h2 class="mb-3">Release candidates</h2>
+<div class="row g-3 mb-4">
+    {% for mv in model_versions %}
+    <div class="col-md-4">
+        <div class="card card-hover shadow-sm h-100">
+            <div class="card-body">
+                <h5>{{ mv.display_name }} {% if mv.is_current %}<span class="badge bg-primary">current</span>{% endif %}</h5>
+                <p class="small text-muted">{{ mv.description }}</p>
+                <a href="{% url 'release_candidate_detail' mv.slug %}" class="btn btn-sm btn-outline-primary">Review candidate</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<h4>Decision log</h4>
+<table class="table bg-white shadow-sm">
+    <thead><tr><th>Candidate</th><th>Decision</th><th>Rationale</th><th>By</th><th>When</th></tr></thead>
+    <tbody>
+        {% for d in decisions %}
+        <tr>
+            <td><a href="{% url 'release_candidate_detail' d.candidate_version.slug %}">{{ d.candidate_version.display_name }}</a></td>
+            <td>
+                <span class="badge {% if d.decision == 'approve' %}bg-success{% elif d.decision == 'reject' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ d.get_decision_display }}
+                </span>
+            </td>
+            <td class="small">{{ d.rationale|truncatewords:20 }}</td>
+            <td>{{ d.decided_by }}</td>
+            <td class="small text-muted">{{ d.decided_at }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-3">No decisions recorded yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

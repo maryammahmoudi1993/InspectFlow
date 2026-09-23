@@ -1,0 +1,35 @@
+{% extends "inspection/base.html" %}
+{% block title %}Upload Batch - InspectFlow{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h2>Upload a batch</h2>
+        <p class="text-muted">Images are validated for type and size, then run through the demo classifier immediately.</p>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Batch name</label>
+                        {{ form.name }}
+                        {% for error in form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (optional)</label>
+                        {{ form.notes }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Images (JPG/PNG, up to 8MB each)</label>
+                        <input type="file" name="files" multiple accept="image/jpeg,image/png" class="form-control">
+                        {% for error in form.files.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                    <button class="btn btn-primary" type="submit">Upload &amp; classify</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

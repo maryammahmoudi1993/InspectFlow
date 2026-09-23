@@ -1,0 +1,75 @@
+{% extends "inspection/base.html" %}
+{% block title %}Dashboard - InspectFlow{% endblock %}
+{% block content %}
+<h2 class="mb-1">Dashboard</h2>
+<p class="text-muted">Synthetic demo data &mdash; end-to-end visual inspection workflow.</p>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm"><div class="card-body">
+            <div class="text-muted small">Batches</div>
+            <div class="fs-3 fw-bold">{{ batch_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm"><div class="card-body">
+            <div class="text-muted small">Images</div>
+            <div class="fs-3 fw-bold">{{ image_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm"><div class="card-body">
+            <div class="text-muted small">Pending review</div>
+            <div class="fs-3 fw-bold text-warning">{{ pending_review_count }}</div>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm"><div class="card-body">
+            <div class="text-muted small">Model versions</div>
+            <div class="fs-3 fw-bold">{{ model_versions|length }}</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent batches</span>
+                <a href="{% url 'batch_upload' %}" class="btn btn-sm btn-primary">Upload batch</a>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for batch in batches %}
+                <a href="{% url 'batch_detail' batch.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                    <span>{{ batch.name }}</span>
+                    <span class="text-muted small">{{ batch.image_count }} images &middot; {{ batch.get_status_display }}</span>
+                </a>
+                {% empty %}
+                <div class="list-group-item text-muted">No batches yet. <a href="{% url 'batch_upload' %}">Upload the first one</a>.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Recent release decisions</div>
+            <div class="list-group list-group-flush">
+                {% for d in recent_decisions %}
+                <a href="{% url 'release_candidate_detail' d.candidate_version.slug %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                    <span>{{ d.candidate_version.display_name }}</span>
+                    <span class="badge {% if d.decision == 'approve' %}bg-success{% elif d.decision == 'reject' %}bg-danger{% else %}bg-secondary{% endif %}">
+                        {{ d.get_decision_display }}
+                    </span>
+                </a>
+                {% empty %}
+                <div class="list-group-item text-muted">No release decisions recorded yet.</div>
+                {% endfor %}
+            </div>
+            <div class="card-footer text-end">
+                <a href="{% url 'model_comparison' %}" class="btn btn-sm btn-outline-primary">Compare models</a>
+                <a href="{% url 'release_candidates' %}" class="btn btn-sm btn-outline-secondary">All candidates</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

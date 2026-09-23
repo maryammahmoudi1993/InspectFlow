@@ -1,0 +1,107 @@
+{% extends "inspection/base.html" %}
+{% block title %}{{ candidate.display_name }} - Release - InspectFlow{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ candidate.display_name }}</h2>
+<p class="text-muted">{{ candidate.description }}</p>
+
+<div class="alert alert-warning">
+    This page summarizes evidence from a synthetic demo evaluation set. It is a starting point for human judgment,
+    not an automated safety certification &mdash; the sample classifier is not suitable for real manufacturing decisions.
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Review coverage</div>
+            <div class="card-body">
+                <p class="mb-1">{{ reviewed_count }} / {{ total_images }} images reviewed</p>
+                {% if evaluation_set %}
+                <p class="mb-1">Evaluation set: {{ evaluation_set.name }} ({{ evaluation_set.labeled_images.count }} labeled images)</p>
+                {% else %}
+                <p class="text-danger">No evaluation set available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Candidate metrics</div>
+            <div class="card-body">
+                {% if candidate_result and candidate_result.accuracy is not None %}
+                <p class="fs-4 fw-bold">{{ candidate_result.accuracy|floatformat:3 }} accuracy</p>
+                <p class="small text-muted">{{ candidate_result.evaluated_count }} evaluated{% if candidate_result.skipped_missing_prediction %} &middot; {{ candidate_result.skipped_missing_prediction }} skipped{% endif %}</p>
+                {% else %}
+                <p class="text-muted">Not enough labeled data to evaluate.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Baseline ({{ baseline.display_name|default:"none" }})</div>
+            <div class="card-body">
+                {% if baseline_result and baseline_result.accuracy is not None %}
+                <p class="fs-4 fw-bold">{{ baseline_result.accuracy|floatformat:3 }} accuracy</p>
+                {% elif baseline %}
+                <p class="text-muted">Not enough labeled data to evaluate.</p>
+                {% else %}
+                <p class="text-muted">No current baseline model set.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header">Known limitations</div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>All images and labels are synthetic, generated for demonstration purposes.</li>
+                    <li>The classifier is a deterministic stand-in, not a trained computer-vision model.</li>
+                    <li>Evaluation only covers images that have been reviewed by a human and labeled.</li>
+                    <li>Class support may be small for some defect categories; treat per-class metrics accordingly.</li>
+                </ul>
+                <a href="{% url 'model_comparison' %}?model_a={{ baseline.slug }}&model_b={{ candidate.slug }}&evaluation_set={{ evaluation_set.pk }}" class="btn btn-sm btn-outline-primary mt-2">
+                    View full comparison &amp; example disagreements
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header">Record a decision</div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Decision</label>
+                        {{ form.decision }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rationale</label>
+                        {{ form.rationale }}
+                    </div>
+                    <button class="btn btn-primary" type="submit">Record decision</button>
+                </form>
+            </div>
+        </div>
+
+        {% if past_decisions %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header">Decision history for this candidate</div>
+            <ul class="list-group list-group-flush">
+                {% for d in past_decisions %}
+                <li class="list-group-item">
+                    <span class="badge {% if d.decision == 'approve' %}bg-success{% elif d.decision == 'reject' %}bg-danger{% else %}bg-secondary{% endif %}">{{ d.get_decision_display }}</span>
+                    <span class="small text-muted">{{ d.decided_by }} &middot; {{ d.decided_at }}</span>
+                    <p class="small mb-0">{{ d.rationale }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

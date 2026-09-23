@@ -1,0 +1,68 @@
+{% extends "inspection/base.html" %}
+{% block title %}Review {{ image.original_filename }} - InspectFlow{% endblock %}
+{% block content %}
+<a href="{{ next|default:'/review/' }}" class="d-inline-block mb-3">&larr; Back to queue</a>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <img src="{{ image.file.url }}" class="img-fluid rounded shadow-sm w-100" alt="{{ image.original_filename }}">
+        <p class="small text-muted mt-2">{{ image.original_filename }} &middot; batch: {{ image.batch.name }}</p>
+
+        <div class="card shadow-sm mb-3">
+            <div class="card-header">Model predictions</div>
+            <ul class="list-group list-group-flush">
+                {% for p in predictions %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>{{ p.model_version.display_name }}</span>
+                    <span>{{ p.get_predicted_class_display }} &middot; {{ p.confidence|floatformat:2 }}
+                        {% if p.is_uncertain %}<span class="badge bg-warning text-dark">uncertain</span>{% endif %}
+                    </span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">No predictions yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">Ground-truth review</div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <div class="mb-3">
+                        <label class="form-label">Corrected / confirmed label</label>
+                        {{ form.ground_truth_label }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        {{ form.note }}
+                    </div>
+                    {% if review.reviewer %}
+                    <p class="small text-muted">Last reviewed by {{ review.reviewer }} on {{ review.reviewed_at }}</p>
+                    {% endif %}
+                    <button class="btn btn-primary" type="submit">Save review</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-header">Audit history</div>
+            <ul class="list-group list-group-flush">
+                {% for entry in audit_entries %}
+                <li class="list-group-item">
+                    <div class="small fw-semibold">{{ entry.field_changed }}</div>
+                    <div class="small">"{{ entry.old_value|default:"(none)" }}" &rarr; "{{ entry.new_value }}"</div>
+                    <div class="small text-muted">{{ entry.changed_by }} &middot; {{ entry.changed_at }}</div>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted small">No changes recorded yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

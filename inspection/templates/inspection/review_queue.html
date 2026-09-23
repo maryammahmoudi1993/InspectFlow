@@ -1,0 +1,97 @@
+{% extends "inspection/base.html" %}
+{% block title %}Review Queue - InspectFlow{% endblock %}
+{% block content %}
+<h2 class="mb-3">Review queue</h2>
+
+<form method="get" class="row row-cols-lg-auto g-2 align-items-center mb-4">
+    <div class="col-12">
+        <select name="batch" class="form-select">
+            <option value="">All batches</option>
+            {% for b in batches %}
+            <option value="{{ b.pk }}" {% if selected_batch == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <select name="class" class="form-select">
+            <option value="">All predicted classes</option>
+            {% for key, label in defect_classes %}
+            <option value="{{ key }}" {% if selected_class == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <select name="model" class="form-select">
+            <option value="">All model versions</option>
+            {% for mv in model_versions %}
+            <option value="{{ mv.slug }}" {% if selected_model == mv.slug %}selected{% endif %}>{{ mv.display_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12">
+        <select name="status" class="form-select">
+            <option value="">All statuses</option>
+            <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>Pending</option>
+            <option value="reviewed" {% if selected_status == "reviewed" %}selected{% endif %}>Reviewed</option>
+        </select>
+    </div>
+    <div class="col-12">
+        <select name="sort" class="form-select">
+            <option value="uncertain" {% if selected_sort == "uncertain" %}selected{% endif %}>Most uncertain first</option>
+            <option value="confidence_desc" {% if selected_sort == "confidence_desc" %}selected{% endif %}>Highest confidence first</option>
+            <option value="recent" {% if selected_sort == "recent" %}selected{% endif %}>Most recently uploaded</option>
+        </select>
+    </div>
+    <div class="col-12">
+        <button class="btn btn-primary" type="submit">Apply</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover align-middle bg-white shadow-sm">
+    <thead>
+        <tr>
+            <th></th>
+            <th>Batch</th>
+            <th>Prediction</th>
+            <th>Confidence</th>
+            <th>Model</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for image, prediction in rows %}
+        <tr>
+            <td><img src="{{ image.file.url }}" class="thumb" style="width:60px;height:60px;" alt=""></td>
+            <td>{{ image.batch.name }}</td>
+            <td>
+                {% if prediction %}{{ prediction.get_predicted_class_display }}{% else %}<span class="text-muted">n/a</span>{% endif %}
+            </td>
+            <td style="width:160px;">
+                {% if prediction %}
+                <div class="d-flex align-items-center gap-2">
+                    <div class="confidence-bar flex-grow-1">
+                        <div class="confidence-fill {% if prediction.is_uncertain %}bg-warning{% else %}bg-success{% endif %}" style="width:{% widthratio prediction.confidence 1 100 %}%;"></div>
+                    </div>
+                    <span class="small">{{ prediction.confidence|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+            </td>
+            <td>{% if prediction %}{{ prediction.model_version.display_name }}{% endif %}</td>
+            <td>
+                {% if image.is_reviewed %}
+                <span class="badge bg-success">Reviewed</span>
+                {% else %}
+                <span class="badge bg-secondary">Pending</span>
+                {% endif %}
+            </td>
+            <td><a href="{% url 'review_detail' image.pk %}" class="btn btn-sm btn-outline-primary">Open</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No images match these filters.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

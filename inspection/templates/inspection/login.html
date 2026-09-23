@@ -1,0 +1,30 @@
+{% extends "inspection/base.html" %}
+{% block title %}Log in - InspectFlow{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card shadow-sm mt-5">
+            <div class="card-body p-4">
+                <h4 class="mb-1">InspectFlow</h4>
+                <p class="text-muted small">AI visual inspection dashboard &mdash; demo</p>
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.errors %}
+                        <div class="alert alert-danger py-2">Invalid username or password.</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        {{ form.username }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        {{ form.password }}
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Log in</button>
+                </form>
+                <p class="small text-muted mt-3 mb-0">Demo credentials: <code>reviewer</code> / <code>inspectflow-demo</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

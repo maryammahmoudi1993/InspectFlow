@@ -1,0 +1,40 @@
+{% extends "inspection/base.html" %}
+{% block title %}{{ batch.name }} - InspectFlow{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="mb-0">{{ batch.name }}</h2>
+        <p class="text-muted mb-0">{{ batch.image_count }} images &middot; uploaded {{ batch.uploaded_at }} &middot; status: {{ batch.get_status_display }}</p>
+        {% if batch.notes %}<p class="small">{{ batch.notes }}</p>{% endif %}
+    </div>
+    <a href="{% url 'review_queue' %}?batch={{ batch.pk }}" class="btn btn-outline-primary">Review this batch</a>
+</div>
+
+<div class="row g-3">
+    {% for image in images %}
+    <div class="col-6 col-md-3 col-lg-2">
+        <div class="card card-hover h-100">
+            <img src="{{ image.file.url }}" class="thumb card-img-top" alt="{{ image.original_filename }}">
+            <div class="card-body p-2">
+                {% with pred=image.latest_prediction %}
+                {% if pred %}
+                <div class="small fw-semibold">{{ pred.get_predicted_class_display }}</div>
+                <div class="small text-muted">{{ pred.confidence|floatformat:2 }} confidence</div>
+                {% else %}
+                <div class="small text-muted">No prediction</div>
+                {% endif %}
+                {% endwith %}
+                {% if image.is_reviewed %}
+                <span class="badge bg-success">Reviewed</span>
+                {% else %}
+                <span class="badge bg-secondary">Pending</span>
+                {% endif %}
+            </div>
+            <a href="{% url 'review_detail' image.pk %}" class="stretched-link"></a>
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No images in this batch.</p>
+    {% endfor %}
+</div>
+{% endblock %}
