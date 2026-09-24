@@ -1,10 +1,15 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.db import transaction
 from django.db.models import Count, Q
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils._os import safe_join
+from django.core.exceptions import SuspiciousFileOperation
+import os
 
 from . import demo_classifier
 from .evaluation import compare_models, evaluate_model_on_set
@@ -124,8 +129,6 @@ def review_queue(request):
 
     if batch_id:
         images = images.filter(batch_id=batch_id)
-    if predicted_class:
-        images = images.filter(predictions__predicted_class=predicted_class)
     if model_slug:
         images = images.filter(predictions__model_version__slug=model_slug)
     if status == "pending":
@@ -137,7 +140,12 @@ def review_queue(request):
 
     rows = []
     for image in images:
-        prediction = image.latest_prediction
+        predictions = list(image.predictions.all())
+        if model_slug:
+            predictions = [p for p in predictions if p.model_version.slug == model_slug]
+        prediction = max(predictions, key=lambda p: p.processed_at or timezone.now()) if predictions else None
+        if predicted_class and (prediction is None or prediction.predicted_class != predicted_class):
+            continue
         rows.append((image, prediction))
 
     if sort == "uncertain":
@@ -272,10 +280,12 @@ def release_candidate_detail(request, slug):
     total_images = ProductImage.objects.count()
     reviewed_count = Review.objects.filter(status=Review.STATUS_REVIEWED).count()
 
+    examples = []
     if evaluation_set:
         candidate_result = evaluate_model_on_set(candidate, evaluation_set)
         if baseline:
             baseline_result = evaluate_model_on_set(baseline, evaluation_set)
+            examples = compare_models(baseline, candidate, evaluation_set)["disagreements"][:6]
 
     if request.method == "POST":
         form = ReleaseDecisionForm(request.POST)
@@ -303,5 +313,17 @@ def release_candidate_detail(request, slug):
         "reviewed_count": reviewed_count,
         "form": form,
         "past_decisions": past_decisions,
+        "examples": examples,
     }
     return render(request, "inspection/release_detail.html", context)
+
+
+@login_required
+def protected_media(request, path):
+    try:
+        full_path = safe_join(str(settings.MEDIA_ROOT), path)
+    except (SuspiciousFileOperation, ValueError):
+        raise Http404
+    if not os.path.isfile(full_path):
+        raise Http404
+    return FileResponse(open(full_path, "rb"))

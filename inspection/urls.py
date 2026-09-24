@@ -12,6 +12,7 @@ urlpatterns = [
     path("review/", views.review_queue, name="review_queue"),
     path("review/<int:pk>/", views.review_detail, name="review_detail"),
     path("compare/", views.model_comparison, name="model_comparison"),
+    path("media/<path:path>", views.protected_media, name="protected_media"),
     path("release/", views.release_candidates, name="release_candidates"),
     path("release/<slug:slug>/", views.release_candidate_detail, name="release_candidate_detail"),
 ]

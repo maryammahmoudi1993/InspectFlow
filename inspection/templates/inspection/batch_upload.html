@@ -26,8 +26,39 @@
                         <input type="file" name="files" multiple accept="image/jpeg,image/png" class="form-control">
                         {% for error in form.files.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
                     </div>
-                    <button class="btn btn-primary" type="submit">Upload &amp; classify</button>
+                    <button class="btn btn-primary" type="submit" id="upload-btn">Upload &amp; classify</button>
+                    <div class="progress mt-3 d-none" id="upload-progress" role="progressbar" aria-label="Upload progress">
+                        <div class="progress-bar" id="upload-bar" style="width:0%">0%</div>
+                    </div>
+                    <div class="small text-muted mt-2" id="upload-status" aria-live="polite"></div>
                 </form>
+                <script>
+                (function () {
+                    var form = document.querySelector("form[enctype]");
+                    form.addEventListener("submit", function (e) {
+                        e.preventDefault();
+                        var xhr = new XMLHttpRequest();
+                        var bar = document.getElementById("upload-bar");
+                        var status = document.getElementById("upload-status");
+                        document.getElementById("upload-progress").classList.remove("d-none");
+                        document.getElementById("upload-btn").disabled = true;
+                        xhr.upload.onprogress = function (ev) {
+                            if (ev.lengthComputable) {
+                                var pct = Math.round(ev.loaded / ev.total * 100);
+                                bar.style.width = pct + "%"; bar.textContent = pct + "%";
+                                if (pct === 100) status.textContent = "Upload complete - running demo classifier...";
+                            }
+                        };
+                        xhr.onload = function () {
+                            document.open(); document.write(xhr.responseText); document.close();
+                            if (xhr.responseURL) history.replaceState(null, "", xhr.responseURL);
+                        };
+                        xhr.onerror = function () { status.textContent = "Upload failed. Please try again."; document.getElementById("upload-btn").disabled = false; };
+                        xhr.open("POST", form.action || window.location.href);
+                        xhr.send(new FormData(form));
+                    });
+                })();
+                </script>
             </div>
         </div>
     </div>

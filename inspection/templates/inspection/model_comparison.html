@@ -5,7 +5,7 @@
 
 <form method="get" class="row row-cols-lg-auto g-2 align-items-center mb-4">
     <div class="col-12">
-        <select name="model_a" class="form-select">
+        <select name="model_a" class="form-select" aria-label="Model A">
             <option value="">Model A</option>
             {% for mv in model_versions %}
             <option value="{{ mv.slug }}" {% if selected_a == mv.slug %}selected{% endif %}>{{ mv.display_name }}</option>
@@ -13,7 +13,7 @@
         </select>
     </div>
     <div class="col-12">
-        <select name="model_b" class="form-select">
+        <select name="model_b" class="form-select" aria-label="Model B">
             <option value="">Model B</option>
             {% for mv in model_versions %}
             <option value="{{ mv.slug }}" {% if selected_b == mv.slug %}selected{% endif %}>{{ mv.display_name }}</option>
@@ -21,7 +21,7 @@
         </select>
     </div>
     <div class="col-12">
-        <select name="evaluation_set" class="form-select">
+        <select name="evaluation_set" class="form-select" aria-label="Evaluation set">
             <option value="">Evaluation set</option>
             {% for es in evaluation_sets %}
             <option value="{{ es.pk }}" {% if selected_eval_set == es.pk|stringformat:"s" %}selected{% endif %}>{{ es.name }}</option>
@@ -39,6 +39,9 @@
     {% endif %}
 </p>
 
+{% for result in comparison.results_list %}{% if result.skipped_missing_prediction %}
+<div class="alert alert-danger">Incomplete predictions: {{ result.model_version.display_name }} has no prediction for {{ result.skipped_missing_prediction }} labeled image(s). Its metrics cover fewer images than the set's labeled total, so the two models were not scored on identical subsets.</div>
+{% endif %}{% endfor %}
 <div class="row g-4 mb-4">
     {% for result in comparison.results_list %}
     <div class="col-lg-6">
@@ -48,10 +51,11 @@
                 {% if result.accuracy is None %}
                 <p class="text-muted">No evaluable images for this model on this evaluation set.</p>
                 {% else %}
-                <p class="fs-4 fw-bold mb-1">{{ result.accuracy|floatformat:3 }} accuracy</p>
+                <p class="fs-4 fw-bold mb-1">{{ result.accuracy|floatformat:3 }} accuracy <span class="badge bg-warning text-dark fs-6">synthetic demo data</span></p>
                 <p class="small text-muted">{{ result.evaluated_count }} evaluated
                     {% if result.skipped_missing_prediction %}&middot; {{ result.skipped_missing_prediction }} skipped (no prediction){% endif %}
                 </p>
+                <div class="table-responsive">
                 <table class="table table-sm">
                     <thead><tr><th>Class</th><th>Support</th><th>Precision</th><th>Recall</th></tr></thead>
                     <tbody>
@@ -67,7 +71,22 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
+                <h6 class="mt-3">Confusion matrix <span class="small text-muted">(rows: reviewed label, columns: predicted)</span></h6>
+                <div class="table-responsive">
+                <table class="table table-sm table-bordered text-center small">
+                    <thead><tr><th></th>{% for k in result.class_keys %}<th>{{ k }}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                        {% for true, counts in result.matrix_rows %}
+                        <tr><th class="text-start">{{ true }}</th>{% for c in counts %}<td {% if c %}class="table-primary"{% endif %}>{{ c }}</td>{% endfor %}</tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
                 {% endif %}
+                <p class="small text-muted mb-0">
+                    Evaluation set has {{ result.total_in_set }} image(s); {{ result.unlabeled_count }} excluded for lacking a reviewed label.
+                </p>
             </div>
         </div>
     </div>

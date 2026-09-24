@@ -35,6 +35,19 @@ class EvaluationResult:
     accuracy: float = 0.0
     class_metrics: dict = field(default_factory=dict)
     confusion_matrix: dict = field(default_factory=dict)  # {true_label: {pred_label: count}}
+    unlabeled_count: int = 0
+    total_in_set: int = 0
+
+    @property
+    def matrix_rows(self):
+        return [
+            (true, [self.confusion_matrix[true][pred] for pred in DEFECT_CLASS_KEYS])
+            for true in DEFECT_CLASS_KEYS
+        ]
+
+    @property
+    def class_keys(self):
+        return DEFECT_CLASS_KEYS
 
 
 def evaluate_model_on_set(model_version, evaluation_set):
@@ -75,6 +88,8 @@ def evaluate_model_on_set(model_version, evaluation_set):
             class_metrics[truth].false_negatives += 1
             class_metrics[predicted].false_positives += 1
 
+    result.total_in_set = evaluation_set.images.count()
+    result.unlabeled_count = result.total_in_set - len(labeled_images)
     result.evaluated_count = evaluated
     result.accuracy = (correct / evaluated) if evaluated else None
     result.class_metrics = class_metrics

@@ -10,7 +10,10 @@ dependencies or licensing concerns.
 import hashlib
 import io
 import random
+import shutil
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
@@ -101,6 +104,7 @@ class Command(BaseCommand):
             ProductImage.objects.all().delete()
             Batch.objects.all().delete()
             ModelVersion.objects.all().delete()
+            shutil.rmtree(Path(settings.MEDIA_ROOT) / 'batches', ignore_errors=True)
 
         with transaction.atomic():
             reviewer, created = User.objects.get_or_create(
@@ -156,7 +160,7 @@ class Command(BaseCommand):
 
             for image, _true_label in all_images:
                 for model_version in (v1, v2):
-                    result = demo_classifier.classify(image.file.name, model_version.slug)
+                    result = demo_classifier.classify(image.original_filename, model_version.slug)
                     Prediction.objects.create(
                         image=image,
                         model_version=model_version,

@@ -12,6 +12,7 @@ Results are demo-only and must never be presented as real inspection
 accuracy.
 """
 import hashlib
+import os
 
 from .models import DEFECT_CLASS_KEYS
 
@@ -48,6 +49,7 @@ def classify(image_identity: str, model_slug: str) -> dict:
     (e.g. its stored filename). The same identity + model_slug always
     yields the same result.
     """
+    image_identity = os.path.basename(image_identity)
     profile = MODEL_PROFILES.get(model_slug, DEFAULT_PROFILE)
     truth = true_label_for_image(image_identity)
 
