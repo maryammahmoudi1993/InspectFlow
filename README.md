@@ -46,8 +46,8 @@ release code.
 
 ## Demo classifier & dataset
 
-- **Classifier**: `inspection/demo_classifier.py` hashes each image's stored
-  filename together with a per-model-version salt to deterministically
+- **Classifier**: `inspection/demo_classifier.py` hashes each image's base
+  filename (directory ignored) together with a per-model-version salt to deterministically
   produce a predicted class and confidence score. It is *not* a trained
   computer-vision model. Two demo versions (`v1-baseline`, `v2-improved`)
   use different noise levels so their predictions plausibly diverge, which
@@ -65,7 +65,7 @@ source venv/Scripts/activate   # Windows Git Bash / WSL; use venv\Scripts\activa
 pip install -r requirements.txt
 
 python manage.py migrate
-python manage.py seed_demo      # add --reset to wipe and reseed
+python manage.py seed_demo      # add --reset to wipe and reseed to a clean state
 python manage.py runserver
 ```
 
@@ -80,7 +80,7 @@ Then open http://127.0.0.1:8000/ and log in with the seeded demo account:
 python manage.py test inspection
 ```
 
-Covers: deterministic demo classification, batch upload validation and
+Covers (18 tests): deterministic demo classification and stored-path handling, batch upload validation and
 inference, review correction + audit trail, evaluation metrics (accuracy,
 exclusion of unlabeled/missing-prediction images), model comparison
 disagreements, and release decision recording.
@@ -93,29 +93,11 @@ disagreements, and release decision recording.
 - Images are generated shapes, not real product photos.
 - Authentication is a single shared demo reviewer account; a production
   deployment would need per-user accounts, roles, and stronger permissions.
+- The review queue shows one prediction per image (the selected model's when filtering by model).
 - No background task queue — inference runs synchronously on upload, which
   is fine for demo-sized batches but wouldn't scale to large batches or slow
   models.
 
-## Screen-recording script (60–90s) for a portfolio walkthrough
+## Walkthrough
 
-1. **(0:00–0:10) Dashboard** — "This is InspectFlow, a visual inspection
-   review dashboard. Everything here is a synthetic demo — this badge marks
-   every page." Point at batch/image counts and pending review count.
-2. **(0:10–0:25) Upload** — Go to Upload Batch, select a few demo images,
-   submit. "Images are validated and immediately scored by a demo
-   classifier — here's the batch with predictions and confidence per
-   image."
-3. **(0:25–0:45) Review** — Open Review Queue sorted by "most uncertain
-   first." Open one uncertain prediction, show the model's guess, then
-   correct the ground-truth label and add a note. "That correction is
-   timestamped and attributed — here's the audit trail for this image."
-4. **(0:45–1:05) Compare** — Go to Model Comparison, pick the baseline and
-   candidate versions plus the evaluation set. "Both models are scored on
-   the exact same labeled images — accuracy, per-class precision/recall,
-   and here are the specific images where they disagree."
-5. **(1:05–1:25) Release decision** — Open the candidate's release page.
-   "This pulls together the metrics, review coverage, and known
-   limitations, and lets a reviewer record a real decision — approve,
-   reject, or needs more review — with a rationale. It's evidence for a
-   human call, not an automatic pass/fail."
+See [DEMO.md](DEMO.md) for the demo narrative, reset instructions and a 60-90 second recording script.
