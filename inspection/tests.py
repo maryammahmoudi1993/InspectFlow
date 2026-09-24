@@ -172,3 +172,38 @@ class ReleaseDecisionTests(TestCase):
         decision = ReleaseDecision.objects.get(candidate_version=self.candidate)
         self.assertEqual(decision.decision, "needs_review")
         self.assertEqual(decision.decided_by, self.user)
+
+
+class CorrectionFlowsIntoEvaluationTests(TestCase):
+    def test_correcting_label_changes_accuracy(self):
+        user = get_user_model().objects.create_user("rv", password="pw12345")
+        self.client.force_login(user)
+        mv = ModelVersion.objects.create(slug="m", display_name="M")
+        batch = Batch.objects.create(name="B")
+        image = ProductImage.objects.create(batch=batch, file=make_uploaded_image("c.jpg"), original_filename="c.jpg")
+        Prediction.objects.create(
+            image=image, model_version=mv, predicted_class="scratch",
+            confidence=0.9, status=Prediction.STATUS_PROCESSED,
+        )
+        eval_set = EvaluationSet.objects.create(name="E")
+        eval_set.images.add(image)
+        url = reverse("review_detail", args=[image.pk])
+
+        self.client.post(url, {"ground_truth_label": "dent", "note": ""})
+        self.assertEqual(evaluate_model_on_set(mv, eval_set).accuracy, 0.0)
+
+        self.client.post(url, {"ground_truth_label": "scratch", "note": "fixed"})
+        self.assertEqual(evaluate_model_on_set(mv, eval_set).accuracy, 1.0)
+        self.assertEqual(Review.objects.get(image=image).audit_entries.filter(field_changed="ground_truth_label").count(), 2)
+
+
+class ProtectedMediaTests(TestCase):
+    def test_media_requires_login(self):
+        response = self.client.get("/media/anything.jpg")
+        self.assertEqual(response.status_code, 302)
+
+    def test_media_blocks_path_traversal(self):
+        user = get_user_model().objects.create_user("mm", password="pw12345")
+        self.client.force_login(user)
+        response = self.client.get("/media/../manage.py")
+        self.assertEqual(response.status_code, 404)

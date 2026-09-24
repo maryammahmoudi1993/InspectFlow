@@ -67,7 +67,21 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                <h6 class="mt-3">Confusion matrix <span class="small text-muted">(rows: reviewed label, columns: predicted)</span></h6>
+                <div class="table-responsive">
+                <table class="table table-sm table-bordered text-center small">
+                    <thead><tr><th></th>{% for k in result.class_keys %}<th>{{ k }}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                        {% for true, counts in result.matrix_rows %}
+                        <tr><th class="text-start">{{ true }}</th>{% for c in counts %}<td {% if c %}class="table-primary"{% endif %}>{{ c }}</td>{% endfor %}</tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
                 {% endif %}
+                <p class="small text-muted mb-0">
+                    Evaluation set has {{ result.total_in_set }} image(s); {{ result.unlabeled_count }} excluded for lacking a reviewed label.
+                </p>
             </div>
         </div>
     </div>

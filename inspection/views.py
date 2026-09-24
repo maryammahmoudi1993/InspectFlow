@@ -1,10 +1,15 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.db import transaction
 from django.db.models import Count, Q
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils._os import safe_join
+from django.core.exceptions import SuspiciousFileOperation
+import os
 
 from . import demo_classifier
 from .evaluation import compare_models, evaluate_model_on_set
@@ -305,3 +310,14 @@ def release_candidate_detail(request, slug):
         "past_decisions": past_decisions,
     }
     return render(request, "inspection/release_detail.html", context)
+
+
+@login_required
+def protected_media(request, path):
+    try:
+        full_path = safe_join(str(settings.MEDIA_ROOT), path)
+    except (SuspiciousFileOperation, ValueError):
+        raise Http404
+    if not os.path.isfile(full_path):
+        raise Http404
+    return FileResponse(open(full_path, "rb"))
