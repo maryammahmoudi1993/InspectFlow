@@ -5,7 +5,7 @@
 
 <form method="get" class="row row-cols-lg-auto g-2 align-items-center mb-4">
     <div class="col-12">
-        <select name="batch" class="form-select">
+        <select name="batch" class="form-select" aria-label="Filter by batch">
             <option value="">All batches</option>
             {% for b in batches %}
             <option value="{{ b.pk }}" {% if selected_batch == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
@@ -13,7 +13,7 @@
         </select>
     </div>
     <div class="col-12">
-        <select name="class" class="form-select">
+        <select name="class" class="form-select" aria-label="Filter by predicted class">
             <option value="">All predicted classes</option>
             {% for key, label in defect_classes %}
             <option value="{{ key }}" {% if selected_class == key %}selected{% endif %}>{{ label }}</option>
@@ -21,7 +21,7 @@
         </select>
     </div>
     <div class="col-12">
-        <select name="model" class="form-select">
+        <select name="model" class="form-select" aria-label="Filter by model version">
             <option value="">All model versions</option>
             {% for mv in model_versions %}
             <option value="{{ mv.slug }}" {% if selected_model == mv.slug %}selected{% endif %}>{{ mv.display_name }}</option>
@@ -29,14 +29,14 @@
         </select>
     </div>
     <div class="col-12">
-        <select name="status" class="form-select">
+        <select name="status" class="form-select" aria-label="Filter by review status">
             <option value="">All statuses</option>
             <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>Pending</option>
             <option value="reviewed" {% if selected_status == "reviewed" %}selected{% endif %}>Reviewed</option>
         </select>
     </div>
     <div class="col-12">
-        <select name="sort" class="form-select">
+        <select name="sort" class="form-select" aria-label="Sort order">
             <option value="uncertain" {% if selected_sort == "uncertain" %}selected{% endif %}>Most uncertain first</option>
             <option value="confidence_desc" {% if selected_sort == "confidence_desc" %}selected{% endif %}>Highest confidence first</option>
             <option value="recent" {% if selected_sort == "recent" %}selected{% endif %}>Most recently uploaded</option>
@@ -47,7 +47,7 @@
     </div>
 </form>
 
-<div class="table-responsive">
+<div class="table-responsive d-none d-md-block">
 <table class="table table-hover align-middle bg-white shadow-sm">
     <thead>
         <tr>
@@ -64,7 +64,7 @@
         {% for image, prediction in rows %}
         <tr>
             <td><img src="{{ image.file.url }}" class="thumb" style="width:60px;height:60px;" alt=""></td>
-            <td>{{ image.batch.name }}</td>
+            <td class="text-break">{{ image.batch.name }}<div class="small text-muted text-break">{{ image.original_filename }}</div></td>
             <td>
                 {% if prediction %}{{ prediction.get_predicted_class_display }}{% else %}<span class="text-muted">n/a</span>{% endif %}
             </td>
@@ -86,12 +86,47 @@
                 <span class="badge bg-secondary">Pending</span>
                 {% endif %}
             </td>
-            <td><a href="{% url 'review_detail' image.pk %}" class="btn btn-sm btn-outline-primary">Open</a></td>
+            <td><a href="{% url 'review_detail' image.pk %}" class="btn btn-sm btn-outline-primary" aria-label="Open {{ image.original_filename }} for review">Open</a></td>
         </tr>
         {% empty %}
         <tr><td colspan="7" class="text-center text-muted py-4">No images match these filters.</td></tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
+<div class="d-md-none" role="list" aria-label="Review items">
+    {% for image, prediction in rows %}
+    <div class="card shadow-sm mb-3" role="listitem">
+        <div class="card-body">
+            <div class="d-flex gap-3">
+                <img src="{{ image.file.url }}" class="thumb flex-shrink-0" style="width:88px;height:88px;" alt="Preview of {{ image.original_filename }}">
+                <div class="min-w-0 flex-grow-1" style="min-width:0;">
+                    <div class="fw-semibold text-break">{{ image.original_filename }}</div>
+                    <div class="small text-muted text-break">{{ image.batch.name }}</div>
+                    <div class="mt-1">
+                        {% if prediction %}<span class="fw-semibold">{{ prediction.get_predicted_class_display }}</span>{% else %}<span class="text-muted">No prediction</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if prediction %}
+            <div class="mt-3">
+                <div class="d-flex justify-content-between small">
+                    <span>Confidence</span><span>{{ prediction.confidence|floatformat:2 }}{% if prediction.is_uncertain %} (uncertain){% endif %}</span>
+                </div>
+                <div class="confidence-bar" role="progressbar" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{% widthratio prediction.confidence 1 100 %}">
+                    <div class="confidence-fill {% if prediction.is_uncertain %}bg-warning{% else %}bg-success{% endif %}" style="width:{% widthratio prediction.confidence 1 100 %}%;"></div>
+                </div>
+                <div class="small text-muted mt-1 text-break">Model: {{ prediction.model_version.display_name }}</div>
+            </div>
+            {% endif %}
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                {% if image.is_reviewed %}<span class="badge bg-success">Reviewed</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}
+                <a href="{% url 'review_detail' image.pk %}" class="btn btn-primary" aria-label="Open {{ image.original_filename }} for review">Open</a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-center text-muted py-4">No images match these filters.</p>
+    {% endfor %}
 </div>
 {% endblock %}

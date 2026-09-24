@@ -28,7 +28,7 @@
             <div class="card-header">Candidate metrics</div>
             <div class="card-body">
                 {% if candidate_result and candidate_result.accuracy is not None %}
-                <p class="fs-4 fw-bold">{{ candidate_result.accuracy|floatformat:3 }} accuracy</p>
+                <p class="fs-4 fw-bold">{{ candidate_result.accuracy|floatformat:3 }} accuracy <span class="badge bg-warning text-dark fs-6">synthetic</span></p>
                 <p class="small text-muted">{{ candidate_result.evaluated_count }} evaluated{% if candidate_result.skipped_missing_prediction %} &middot; {{ candidate_result.skipped_missing_prediction }} skipped{% endif %}</p>
                 {% else %}
                 <p class="text-muted">Not enough labeled data to evaluate.</p>
@@ -41,7 +41,7 @@
             <div class="card-header">Baseline ({{ baseline.display_name|default:"none" }})</div>
             <div class="card-body">
                 {% if baseline_result and baseline_result.accuracy is not None %}
-                <p class="fs-4 fw-bold">{{ baseline_result.accuracy|floatformat:3 }} accuracy</p>
+                <p class="fs-4 fw-bold">{{ baseline_result.accuracy|floatformat:3 }} accuracy <span class="badge bg-warning text-dark fs-6">synthetic</span></p>
                 {% elif baseline %}
                 <p class="text-muted">Not enough labeled data to evaluate.</p>
                 {% else %}
