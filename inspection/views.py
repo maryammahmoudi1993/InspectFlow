@@ -129,8 +129,6 @@ def review_queue(request):
 
     if batch_id:
         images = images.filter(batch_id=batch_id)
-    if predicted_class:
-        images = images.filter(predictions__predicted_class=predicted_class)
     if model_slug:
         images = images.filter(predictions__model_version__slug=model_slug)
     if status == "pending":
@@ -142,7 +140,12 @@ def review_queue(request):
 
     rows = []
     for image in images:
-        prediction = image.latest_prediction
+        predictions = list(image.predictions.all())
+        if model_slug:
+            predictions = [p for p in predictions if p.model_version.slug == model_slug]
+        prediction = max(predictions, key=lambda p: p.processed_at or timezone.now()) if predictions else None
+        if predicted_class and (prediction is None or prediction.predicted_class != predicted_class):
+            continue
         rows.append((image, prediction))
 
     if sort == "uncertain":

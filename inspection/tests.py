@@ -207,3 +207,60 @@ class ProtectedMediaTests(TestCase):
         self.client.force_login(user)
         response = self.client.get("/media/../manage.py")
         self.assertEqual(response.status_code, 404)
+
+
+class ClassifierIdentityTests(TestCase):
+    def test_stored_path_and_original_filename_classify_identically(self):
+        # Uploads are stored under batches/YYYY/MM/, while seeding classifies by
+        # the original filename; both must produce the same prediction.
+        for slug in ("v1-baseline", "v2-improved"):
+            self.assertEqual(
+                demo_classifier.classify("demo-image-007.jpg", slug),
+                demo_classifier.classify("batches/2026/09/demo-image-007.jpg", slug),
+            )
+
+
+class ReviewQueueFilterTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user("q", password="pw12345"))
+        self.v1 = ModelVersion.objects.create(slug="v1", display_name="V1")
+        self.v2 = ModelVersion.objects.create(slug="v2", display_name="V2")
+        batch = Batch.objects.create(name="B")
+        self.image = ProductImage.objects.create(batch=batch, file=make_uploaded_image("q.jpg"), original_filename="q.jpg")
+        Prediction.objects.create(image=self.image, model_version=self.v1, predicted_class="scratch",
+                                  confidence=0.9, status=Prediction.STATUS_PROCESSED)
+        Prediction.objects.create(image=self.image, model_version=self.v2, predicted_class="dent",
+                                  confidence=0.6, status=Prediction.STATUS_PROCESSED)
+
+    def test_model_filter_shows_that_models_prediction(self):
+        rows = self.client.get(reverse("review_queue"), {"model": "v2"}).context["rows"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][1].model_version, self.v2)
+
+    def test_class_filter_matches_displayed_prediction(self):
+        url = reverse("review_queue")
+        self.assertEqual(len(self.client.get(url, {"model": "v2", "class": "scratch"}).context["rows"]), 0)
+        self.assertEqual(len(self.client.get(url, {"model": "v1", "class": "scratch"}).context["rows"]), 1)
+
+
+import tempfile
+
+from django.core.management import call_command
+from django.test import override_settings
+
+
+class SeedDemoTests(TestCase):
+    def test_seed_produces_consistent_shared_evaluation_set(self):
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            call_command("seed_demo", "--reset", verbosity=0)
+            call_command("seed_demo", "--reset", verbosity=0)  # reset must be repeatable
+            self.assertEqual(Batch.objects.count(), 3)
+            self.assertEqual(ProductImage.objects.count(), 42)
+            eval_set = EvaluationSet.objects.get()
+            v1 = evaluate_model_on_set(ModelVersion.objects.get(slug="v1-baseline"), eval_set)
+            v2 = evaluate_model_on_set(ModelVersion.objects.get(slug="v2-improved"), eval_set)
+            self.assertEqual(v1.evaluated_count, v2.evaluated_count)
+            self.assertEqual(v1.evaluated_count, 30)
+            self.assertAlmostEqual(v1.accuracy, 0.767, places=2)
+            self.assertAlmostEqual(v2.accuracy, 0.933, places=2)
+            self.assertEqual(ReleaseDecision.objects.count(), 1)
