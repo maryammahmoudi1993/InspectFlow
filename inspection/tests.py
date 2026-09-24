@@ -274,3 +274,24 @@ class SeedDemoTests(TestCase):
             self.assertAlmostEqual(v1.accuracy, 0.767, places=2)
             self.assertAlmostEqual(v2.accuracy, 0.933, places=2)
             self.assertEqual(ReleaseDecision.objects.count(), 1)
+
+
+class ReviewRedirectSafetyTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user("r2", password="pw12345"))
+        batch = Batch.objects.create(name="B")
+        self.image = ProductImage.objects.create(batch=batch, file=make_uploaded_image("r.jpg"), original_filename="r.jpg")
+
+    def test_next_redirect_to_same_site_path_is_followed(self):
+        r = self.client.post(reverse("review_detail", args=[self.image.pk]),
+                             {"ground_truth_label": "dent", "note": "", "next": "/compare/?model_a=x"})
+        self.assertEqual(r["Location"], "/compare/?model_a=x")
+
+    def test_next_redirect_to_external_site_is_ignored(self):
+        r = self.client.post(reverse("review_detail", args=[self.image.pk]),
+                             {"ground_truth_label": "dent", "note": "", "next": "https://evil.example/x"})
+        self.assertEqual(r["Location"], reverse("review_queue"))
+
+    def test_unsafe_next_is_not_rendered_in_page(self):
+        r = self.client.get(reverse("review_detail", args=[self.image.pk]), {"next": "javascript:alert(1)"})
+        self.assertNotContains(r, "javascript:alert")

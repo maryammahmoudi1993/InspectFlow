@@ -52,7 +52,7 @@
     </div>
     <div class="col-lg-6">
         <div class="card shadow-sm h-100">
-            <div class="card-header">Recent release decisions</div>
+            <div class="card-header">Recent release decisions <span class="badge bg-warning text-dark">sample record</span></div>
             <div class="list-group list-group-flush">
                 {% for d in recent_decisions %}
                 <a href="{% url 'release_candidate_detail' d.candidate_version.slug %}" class="list-group-item list-group-item-action d-flex justify-content-between">

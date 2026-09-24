@@ -1,7 +1,7 @@
 {% extends "inspection/base.html" %}
 {% block title %}Review {{ image.original_filename }} - InspectFlow{% endblock %}
 {% block content %}
-<a href="{{ next|default:'/review/' }}" class="d-inline-block mb-3">&larr; Back to queue</a>
+<a href="{{ next|default:'/review/' }}" class="d-inline-block mb-3">&larr; {% if next %}Back{% else %}Back to queue{% endif %}</a>
 <div class="row g-4">
     <div class="col-lg-5">
         <img src="{{ image.file.url }}" class="img-fluid rounded shadow-sm w-100" alt="{{ image.original_filename }}">
@@ -28,6 +28,13 @@
         <div class="card shadow-sm">
             <div class="card-header">Ground-truth review</div>
             <div class="card-body">
+                <p class="small text-muted">
+                    Your label becomes the reviewed ground truth for this image.
+                    {% if evaluation_sets %}This image is in the evaluation set
+                    {% for es in evaluation_sets %}&ldquo;{{ es.name }}&rdquo;{% if not forloop.last %}, {% endif %}{% endfor %},
+                    so saving a different label changes the model-comparison results.
+                    {% else %}It is not in an evaluation set yet, so it does not affect model-comparison results.{% endif %}
+                </p>
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ next }}">
