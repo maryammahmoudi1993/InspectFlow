@@ -39,8 +39,9 @@ again before each recording take to wipe uploads, corrections and decisions.
 
 ## What is implemented
 
-- Batch upload with type, size and count validation, a progress bar, and
-  synchronous demo inference storing class, confidence, model version and status.
+- Batch upload with type, size and count validation, a progress bar for the
+  transfer (bytes sent) followed by a separate processing state, clear error
+  messages, and synchronous demo inference storing class, confidence, model version and status.
 - Review queue with filters (batch, class, model version, review status), sorting
   with the most uncertain predictions first, table on desktop and cards on phones.
 - Image review: assign or correct the ground-truth label, add a note, and keep an
@@ -61,7 +62,7 @@ login, background job processing, or any validation against real data.
 Use a desktop-width browser. Reset the seed first.
 
 1. **Dashboard (0:00-0:10).** "InspectFlow is a demo of a defect-review workflow.
-   Everything here is synthetic, which the banner and footer say." Point at the
+   Everything here is synthetic, which the DEMO badge, notices and footer say." Point at the
    pending-review count.
 2. **Upload (0:10-0:25).** Upload Batch, name it, pick 3 images, submit. Show the
    progress bar and the batch page with a prediction and confidence per image.
@@ -70,12 +71,12 @@ Use a desktop-width browser. Reset the seed first.
 4. **Correction moves the numbers (0:45-1:10).** Model Comparison: pick v1, v2 and
    the evaluation set, and Compare. Note the accuracies (0.767 and 0.933) and the
    confusion matrices. Open a disagreement row, change its reviewed label to
-   the other model's prediction, save, and compare again: the accuracies shift
-   (for example 0.733 and 0.967). Say: "both models are always scored on the
+   the other model's prediction, and save. You return to the comparison with the
+   accuracies changed (for example 0.733 and 0.967). Say: "both models are always scored on the
    same reviewed images."
 5. **Release decision (1:10-1:30).** Release Decisions, open the v2 candidate.
    Show coverage, limitations and supporting examples, then record "Needs more
    review" with a short rationale. Say: "the tool provides evidence; a person
    makes the call."
 
-Screenshots of each step are in `docs/screenshots/`.
+Screenshots of each step are in `docs/screenshots/`; the suggested portfolio order and captions are in [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md).

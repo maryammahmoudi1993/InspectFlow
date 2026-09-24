@@ -80,7 +80,7 @@ Then open http://127.0.0.1:8000/ and log in with the seeded demo account:
 python manage.py test inspection
 ```
 
-Covers (18 tests): deterministic demo classification and stored-path handling, batch upload validation and
+Covers (22 tests): deterministic demo classification and stored-path handling, batch upload validation and
 inference, review correction + audit trail, evaluation metrics (accuracy,
 exclusion of unlabeled/missing-prediction images), model comparison
 disagreements, and release decision recording.
@@ -94,10 +94,11 @@ disagreements, and release decision recording.
 - Authentication is a single shared demo reviewer account; a production
   deployment would need per-user accounts, roles, and stronger permissions.
 - The review queue shows one prediction per image (the selected model's when filtering by model).
+- Bootstrap CSS/JS load from a CDN, so the styled interface needs an internet connection.
 - No background task queue — inference runs synchronously on upload, which
   is fine for demo-sized batches but wouldn't scale to large batches or slow
   models.
 
 ## Walkthrough
 
-See [DEMO.md](DEMO.md) for the demo narrative, reset instructions and a 60-90 second recording script.
+See [DEMO.md](DEMO.md) for the demo narrative, reset instructions and a 60-90 second recording script, and [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for the portfolio write-up.
