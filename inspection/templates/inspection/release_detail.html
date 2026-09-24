@@ -52,6 +52,13 @@
     </div>
 </div>
 
+{% if candidate_result and candidate_result.skipped_missing_prediction %}
+<div class="alert alert-danger">{{ candidate_result.skipped_missing_prediction }} labeled image(s) have no prediction from this candidate and are excluded from its metrics.</div>
+{% endif %}
+{% if candidate_result and candidate_result.unlabeled_count %}
+<div class="alert alert-warning">{{ candidate_result.unlabeled_count }} image(s) in the evaluation set lack a reviewed label and are excluded from all metrics.</div>
+{% endif %}
+
 <div class="row g-4">
     <div class="col-lg-7">
         <div class="card shadow-sm">
@@ -63,6 +70,17 @@
                     <li>Evaluation only covers images that have been reviewed by a human and labeled.</li>
                     <li>Class support may be small for some defect categories; treat per-class metrics accordingly.</li>
                 </ul>
+                {% if examples %}
+                <h6 class="mt-3">Supporting examples (baseline vs. candidate disagree)</h6>
+                <ul class="small">
+                    {% for c in examples %}
+                    <li><a href="{% url 'review_detail' c.image.pk %}">{{ c.image.original_filename }}</a>:
+                        baseline {{ c.label_a }} ({{ c.confidence_a|floatformat:2 }}),
+                        candidate {{ c.label_b }} ({{ c.confidence_b|floatformat:2 }}),
+                        reviewed label {{ c.ground_truth }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
                 <a href="{% url 'model_comparison' %}?model_a={{ baseline.slug }}&model_b={{ candidate.slug }}&evaluation_set={{ evaluation_set.pk }}" class="btn btn-sm btn-outline-primary mt-2">
                     View full comparison &amp; example disagreements
                 </a>

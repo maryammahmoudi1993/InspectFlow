@@ -277,10 +277,12 @@ def release_candidate_detail(request, slug):
     total_images = ProductImage.objects.count()
     reviewed_count = Review.objects.filter(status=Review.STATUS_REVIEWED).count()
 
+    examples = []
     if evaluation_set:
         candidate_result = evaluate_model_on_set(candidate, evaluation_set)
         if baseline:
             baseline_result = evaluate_model_on_set(baseline, evaluation_set)
+            examples = compare_models(baseline, candidate, evaluation_set)["disagreements"][:6]
 
     if request.method == "POST":
         form = ReleaseDecisionForm(request.POST)
@@ -308,6 +310,7 @@ def release_candidate_detail(request, slug):
         "reviewed_count": reviewed_count,
         "form": form,
         "past_decisions": past_decisions,
+        "examples": examples,
     }
     return render(request, "inspection/release_detail.html", context)
 

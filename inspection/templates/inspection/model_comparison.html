@@ -39,6 +39,9 @@
     {% endif %}
 </p>
 
+{% for result in comparison.results_list %}{% if result.skipped_missing_prediction %}
+<div class="alert alert-danger">Incomplete predictions: {{ result.model_version.display_name }} has no prediction for {{ result.skipped_missing_prediction }} labeled image(s). Its metrics cover fewer images than the set's labeled total, so the two models were not scored on identical subsets.</div>
+{% endif %}{% endfor %}
 <div class="row g-4 mb-4">
     {% for result in comparison.results_list %}
     <div class="col-lg-6">
