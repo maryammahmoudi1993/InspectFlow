@@ -65,6 +65,16 @@ class BatchUploadTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Batch.objects.filter(name="Bad batch").exists())
 
+    def test_upload_error_message_names_the_problem_and_keeps_form(self):
+        bad_file = SimpleUploadedFile("report.pdf", b"%PDF-1.4", content_type="application/pdf")
+        response = self.client.post(
+            reverse("batch_upload"), {"name": "Bad batch", "notes": "", "files": [bad_file]}
+        )
+        self.assertContains(response, "report.pdf")
+        self.assertContains(response, "unsupported file type")
+        self.assertContains(response, 'id="upload-btn"')
+        self.assertEqual(Batch.objects.count(), 0)
+
     def test_upload_requires_login(self):
         self.client.logout()
         response = self.client.get(reverse("batch_upload"))
@@ -264,3 +274,24 @@ class SeedDemoTests(TestCase):
             self.assertAlmostEqual(v1.accuracy, 0.767, places=2)
             self.assertAlmostEqual(v2.accuracy, 0.933, places=2)
             self.assertEqual(ReleaseDecision.objects.count(), 1)
+
+
+class ReviewRedirectSafetyTests(TestCase):
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user("r2", password="pw12345"))
+        batch = Batch.objects.create(name="B")
+        self.image = ProductImage.objects.create(batch=batch, file=make_uploaded_image("r.jpg"), original_filename="r.jpg")
+
+    def test_next_redirect_to_same_site_path_is_followed(self):
+        r = self.client.post(reverse("review_detail", args=[self.image.pk]),
+                             {"ground_truth_label": "dent", "note": "", "next": "/compare/?model_a=x"})
+        self.assertEqual(r["Location"], "/compare/?model_a=x")
+
+    def test_next_redirect_to_external_site_is_ignored(self):
+        r = self.client.post(reverse("review_detail", args=[self.image.pk]),
+                             {"ground_truth_label": "dent", "note": "", "next": "https://evil.example/x"})
+        self.assertEqual(r["Location"], reverse("review_queue"))
+
+    def test_unsafe_next_is_not_rendered_in_page(self):
+        r = self.client.get(reverse("review_detail", args=[self.image.pk]), {"next": "javascript:alert(1)"})
+        self.assertNotContains(r, "javascript:alert")

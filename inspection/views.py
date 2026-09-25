@@ -7,6 +7,7 @@ from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils._os import safe_join
 from django.core.exceptions import SuspiciousFileOperation
 import os
@@ -213,10 +214,18 @@ def review_detail(request, pk):
                     )
             messages.success(request, "Review saved.")
             next_url = request.POST.get("next")
-            return redirect(next_url or "review_queue")
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
+            return redirect("review_queue")
     else:
         form = ReviewForm(initial={"ground_truth_label": review.ground_truth_label, "note": review.note})
 
+    requested_next = request.GET.get("next", "")
+    safe_next = (
+        requested_next
+        if requested_next and url_has_allowed_host_and_scheme(requested_next, allowed_hosts={request.get_host()})
+        else ""
+    )
     predictions = image.predictions.select_related("model_version").all()
     audit_entries = review.audit_entries.select_related("changed_by").all()
     context = {
@@ -225,7 +234,8 @@ def review_detail(request, pk):
         "form": form,
         "predictions": predictions,
         "audit_entries": audit_entries,
-        "next": request.GET.get("next", ""),
+        "next": safe_next,
+        "evaluation_sets": image.evaluation_sets.all(),
     }
     return render(request, "inspection/review_detail.html", context)
 

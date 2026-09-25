@@ -32,6 +32,7 @@
 </form>
 
 {% if comparison %}
+<div class="alert alert-warning py-2">Synthetic demo data: both versions are stand-in classifiers run on generated images. These figures are recalculated from the current reviewed labels each time this page loads and say nothing about real production performance.</div>
 <p class="text-muted">
     Evaluation set "{{ comparison.evaluation_set.name }}" has {{ comparison.total_labeled_images }} labeled image(s).
     {% if comparison.both_missing_predictions %}
@@ -101,7 +102,7 @@
             <tbody>
                 {% for case in comparison.disagreements %}
                 <tr>
-                    <td><a href="{% url 'review_detail' case.image.pk %}"><img src="{{ case.image.file.url }}" style="width:50px;height:50px;object-fit:cover;" class="rounded"></a></td>
+                    <td><a href="{% url 'review_detail' case.image.pk %}?next={{ request.get_full_path|urlencode }}" aria-label="Review {{ case.image.original_filename }}"><img src="{{ case.image.file.url }}" style="width:50px;height:50px;object-fit:cover;" class="rounded"></a></td>
                     <td>{{ case.label_a }} ({{ case.confidence_a|floatformat:2 }})</td>
                     <td>{{ case.label_b }} ({{ case.confidence_b|floatformat:2 }})</td>
                     <td>{{ case.ground_truth }}</td>
