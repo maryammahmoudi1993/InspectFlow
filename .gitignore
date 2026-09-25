@@ -6,3 +6,4 @@ media/
 .env
 staticfiles/
 *.log
+CLAUDE.md
